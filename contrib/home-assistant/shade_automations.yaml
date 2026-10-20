@@ -123,3 +123,47 @@
           {{ 'AcuRite 5n1 battery is LOW - shade wind protection at risk.'
              if trigger.id == 'low' else
              'No data from AcuRite 5n1 for 2 hours - check battery and signal. Shade wind protection is off.' }}
+
+# Needs a Somfy status sensor. Publish this once, retained (Developer tools ->
+# Actions -> mqtt.publish), then use its entity id below:
+#   topic: homeassistant/binary_sensor/somfy_controller_online/config
+#   payload: {"name":"Somfy controller online","unique_id":"somfy_controller_online",
+#     "state_topic":"somfy/status","payload_on":"online","payload_off":"offline",
+#     "device_class":"connectivity","device":{"identifiers":["somfy_controller"],
+#     "name":"ESPSomfy-RTS controller"}}
+- alias: "Weather or shade controller offline: push to iPhone"
+  description: Push when either ESP32 board is offline for 5 minutes, and when it returns
+  mode: queued
+  max: 10
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.omg_rtl_433_esp_sys_connectivity
+      to: [off, unavailable, unknown]
+      for: "00:05:00"
+      id: w_down
+    - trigger: state
+      entity_id: binary_sensor.espsomfy_rts_controller_somfy_controller_online
+      to: [off, unavailable, unknown]
+      for: "00:05:00"
+      id: s_down
+    - trigger: state
+      entity_id: binary_sensor.omg_rtl_433_esp_sys_connectivity
+      from: [off, unavailable, unknown]
+      to: "on"
+      id: w_up
+    - trigger: state
+      entity_id: binary_sensor.espsomfy_rts_controller_somfy_controller_online
+      from: [off, unavailable, unknown]
+      to: "on"
+      id: s_up
+  actions:
+    - action: notify.mobile_app_als_iphone
+      data:
+        title: >-
+          {{ 'Weather' if trigger.id.startswith('w') else 'Shades' }}
+          {{ 'DOWN' if trigger.id.endswith('down') else 'back online' }}
+        message: >-
+          {% if trigger.id == 'w_down' %}The weather receiver (Board 2) has been offline for 5 minutes. Wind, rain and heat shade protection is OFF.
+          {% elif trigger.id == 's_down' %}The Somfy shade controller (Board 1) has been offline for 5 minutes. Shades cannot be moved automatically.
+          {% elif trigger.id == 'w_up' %}The weather receiver is back online.
+          {% else %}The Somfy shade controller is back online.{% endif %}
