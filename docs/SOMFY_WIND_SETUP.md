@@ -86,7 +86,7 @@ yourself with our pins (no rewiring needed):
 4. Join the `OMG_rtl_433_ESP` Wi-Fi network (password `OMGSecured`), choose
    *Configure WiFi*, and enter your Wi-Fi plus the MQTT server (Home Assistant),
    port 1883, and the MQTT user and password.
-5. The OMG web UI login is user `admin` and the gateway password. To reset it,
+5. The OMG web UI login is user `admin` and the gateway password (default `OMGSecured` if the portal does not ask). If the board reaches Wi-Fi but Home Assistant shows it unavailable, MQTT auth failed: re-enter the MQTT user/password under Configuration -> MQTT. To reset it,
    erase flash (`pio run -t erase`) and reflash.
 
 Home Assistant then discovers the sensors automatically
@@ -111,6 +111,7 @@ Automations are in
 | Sunset | sunset | raise all shades |
 | Heat | temperature crosses above 80 F, in daylight, wind at or below 4 mph, no rain for 30 min | lower all shades |
 | Sensor health | 5n1 battery low, or no signal for 2 hours | push alert |
+| Board offline | weather receiver or Somfy controller offline 5 min (and back online) | push alert |
 
 Notes: the heat rule fires on the crossing only and does not lower again after
 wind or rain clears. The AcuRite 5n1 does not report cloud cover; use a Home
