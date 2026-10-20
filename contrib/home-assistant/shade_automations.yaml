@@ -1,0 +1,125 @@
+# Copyright (c) 2026 Al Ruiz. All rights reserved.
+#
+# Home Assistant automations for the Somfy shade + AcuRite 5-in-1 setup in
+# docs/SOMFY_WIND_SETUP.md. Paste into Settings -> Automations -> (three dots)
+# -> Edit in YAML, one automation at a time, or merge into automations.yaml.
+#
+# Adjust before use:
+#   * sensor.acurite_5n1_c_364_*   -> your 5n1's entity ids (device id 364 here)
+#   * notify.mobile_app_als_iphone -> your phone's notify action
+#   * somfy/shades/1..4            -> ESPSomfy root topic "somfy" and shade ids
+#
+# ESPSomfy direction/set payloads: -1 = up (open), 1 = down (close).
+# Units follow the Home Assistant unit system (imperial here: mph, degF, in).
+
+- alias: "Wind > 4 mph: raise all shades"
+  description: Raises all Somfy shades when the 5n1 wind average rises above 4 mph
+  mode: single
+  triggers:
+    - trigger: numeric_state
+      entity_id: sensor.acurite_5n1_c_364_wind_average
+      above: 4
+  actions:
+    - action: mqtt.publish
+      data: {topic: somfy/shades/1/direction/set, payload: "-1"}
+    - action: mqtt.publish
+      data: {topic: somfy/shades/2/direction/set, payload: "-1"}
+    - action: mqtt.publish
+      data: {topic: somfy/shades/3/direction/set, payload: "-1"}
+    - action: mqtt.publish
+      data: {topic: somfy/shades/4/direction/set, payload: "-1"}
+
+- alias: "Rain: raise all shades and notify"
+  description: >-
+    When the 5n1 rain total increases, raise all shades and push a notice.
+    At most once an hour.
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: sensor.acurite_5n1_c_364_rain
+      not_from: [unknown, unavailable]
+      not_to: [unknown, unavailable]
+  conditions:
+    - condition: template
+      value_template: "{{ trigger.to_state.state | float(0) > trigger.from_state.state | float(0) }}"
+    - condition: template
+      value_template: >-
+        {{ (now() - this.attributes.last_triggered).total_seconds() > 3600
+           if this.attributes.last_triggered else true }}
+  actions:
+    - action: mqtt.publish
+      data: {topic: somfy/shades/1/direction/set, payload: "-1"}
+    - action: mqtt.publish
+      data: {topic: somfy/shades/2/direction/set, payload: "-1"}
+    - action: mqtt.publish
+      data: {topic: somfy/shades/3/direction/set, payload: "-1"}
+    - action: mqtt.publish
+      data: {topic: somfy/shades/4/direction/set, payload: "-1"}
+    - action: notify.mobile_app_als_iphone
+      data:
+        title: "It's raining"
+        message: "Rain detected. All shades raised."
+
+- alias: "Sunset: raise all shades"
+  description: Raises all Somfy shades at sunset
+  mode: single
+  triggers:
+    - trigger: sun
+      event: sunset
+  actions:
+    - action: mqtt.publish
+      data: {topic: somfy/shades/1/direction/set, payload: "-1"}
+    - action: mqtt.publish
+      data: {topic: somfy/shades/2/direction/set, payload: "-1"}
+    - action: mqtt.publish
+      data: {topic: somfy/shades/3/direction/set, payload: "-1"}
+    - action: mqtt.publish
+      data: {topic: somfy/shades/4/direction/set, payload: "-1"}
+
+- alias: "Heat 80F+: lower all shades"
+  description: >-
+    Lowers all shades when the temperature crosses above 80 F in daylight, but
+    only if it is calm and has not rained in the last 30 minutes. Fires on the
+    crossing only; it does not re-lower after wind or rain clears.
+  mode: single
+  triggers:
+    - trigger: numeric_state
+      entity_id: sensor.acurite_5n1_c_364_temperature
+      above: 80
+  conditions:
+    - condition: state
+      entity_id: sun.sun
+      state: above_horizon
+    - condition: template
+      value_template: "{{ states('sensor.acurite_5n1_c_364_wind_average') | float(99) <= 4 }}"
+    - condition: template
+      value_template: "{{ (now() - states.sensor.acurite_5n1_c_364_rain.last_changed).total_seconds() > 1800 }}"
+  actions:
+    - action: mqtt.publish
+      data: {topic: somfy/shades/1/direction/set, payload: "1"}
+    - action: mqtt.publish
+      data: {topic: somfy/shades/2/direction/set, payload: "1"}
+    - action: mqtt.publish
+      data: {topic: somfy/shades/3/direction/set, payload: "1"}
+    - action: mqtt.publish
+      data: {topic: somfy/shades/4/direction/set, payload: "1"}
+
+- alias: "AcuRite 5n1 low battery or no data: push to iPhone"
+  description: Push alert if the 5n1 battery is low or no signal for 2 hours
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.acurite_5n1_c_364_battery
+      to: "on"
+      id: low
+    - trigger: template
+      value_template: "{{ (now() - states.sensor.acurite_5n1_c_364_rssi.last_reported).total_seconds() > 7200 }}"
+      id: stale
+  actions:
+    - action: notify.mobile_app_als_iphone
+      data:
+        title: Weather sensor alert
+        message: >-
+          {{ 'AcuRite 5n1 battery is LOW - shade wind protection at risk.'
+             if trigger.id == 'low' else
+             'No data from AcuRite 5n1 for 2 hours - check battery and signal. Shade wind protection is off.' }}
