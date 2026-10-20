@@ -4,6 +4,10 @@ Architecture, task ownership, callback context, lifecycle, and resource notes
 are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The upstream
 refresh procedure is documented in [docs/UPSTREAM.md](docs/UPSTREAM.md).
 
+A complete worked example of this library driving Somfy RTS shades from an
+AcuRite 5-in-1 weather sensor via Home Assistant (wiring, firmware, automations)
+is in [docs/SOMFY_WIND_SETUP.md](docs/SOMFY_WIND_SETUP.md).
+
 Inspiration for this came from the ESPiLight effort.  Kudos to puuu for this, and the awesome package.
 
 This is the [LILYGO® LoRa32 V2.1_1.6.1 433Mhz](https://www.lilygo.cc/products/lora3?variant=42476923879605) board running [OpenMQTTGateway](https://github.com/1technophile/OpenMQTTGateway/blob/master/README.md).
