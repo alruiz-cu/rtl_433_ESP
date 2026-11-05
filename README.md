@@ -7,6 +7,8 @@ refresh procedure is documented in [docs/UPSTREAM.md](docs/UPSTREAM.md).
 A complete worked example of this library driving Somfy RTS shades from an
 AcuRite 5-in-1 weather sensor via Home Assistant (wiring, firmware, automations)
 is in [docs/SOMFY_WIND_SETUP.md](docs/SOMFY_WIND_SETUP.md).
+The live system's current state and open items are in
+[docs/HOME_ASSISTANT_STATE.md](docs/HOME_ASSISTANT_STATE.md).
 
 Inspiration for this came from the ESPiLight effort.  Kudos to puuu for this, and the awesome package.
 

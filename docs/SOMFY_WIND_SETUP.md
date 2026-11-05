@@ -113,6 +113,11 @@ Automations are in
 | Sensor health | 5n1 battery low, or no signal for 2 hours | push alert |
 | Board offline | weather receiver or Somfy controller offline 5 min (and back online) | push alert |
 
+Weather dashboard extras (NWS alerts, air quality, wind direction charts) are in
+[contrib/home-assistant](../contrib/home-assistant). The live system's current
+state, addresses and open items are in
+[HOME_ASSISTANT_STATE.md](HOME_ASSISTANT_STATE.md).
+
 Notes: the heat rule fires on the crossing only and does not lower again after
 wind or rain clears. The AcuRite 5n1 does not report cloud cover; use a Home
 Assistant weather integration if you need it.
@@ -137,7 +142,8 @@ Assistant weather integration if you need it.
 ```bash
 cd examples/OOK_Receiver
 pio run -e esp32_cc1101_acurite        # builds the receiver firmware
-python -c "import yaml,sys; yaml.safe_load(open('../../contrib/home-assistant/shade_automations.yaml'))"
+cd ../..
+python tools/check_home_assistant_config.py   # YAML + SQL sensor checks
 ```
 
 Then confirm in Home Assistant that the wind sensor updates, and publish
