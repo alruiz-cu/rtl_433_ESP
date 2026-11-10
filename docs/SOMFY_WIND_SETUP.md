@@ -106,10 +106,11 @@ Automations are in
 
 | Rule | Trigger | Action |
 |---|---|---|
-| Wind | wind average rises above 4 mph | raise all shades |
+| Wind | wind average rises above 8 mph | raise all shades |
 | Rain | 5n1 rain total increases (max once an hour) | raise all shades, push "It's raining" |
 | Sunset | sunset | raise all shades |
-| Heat | temperature crosses above 80 F, in daylight, wind at or below 4 mph, no rain for 30 min | lower all shades |
+| Heat | temperature crosses above 80 F, in daylight, wind below 4 mph, no rain for 30 min | lower all shades |
+| Sun | every 30 min from noon to 4 pm, if NWS says sunny, wind below 4 mph, no rain for 30 min | lower the living room shade |
 | Sensor health | 5n1 battery low, or no signal for 2 hours | push alert |
 | Board offline | weather receiver or Somfy controller offline 5 min (and back online) | push alert |
 

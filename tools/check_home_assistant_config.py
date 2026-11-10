@@ -4,6 +4,8 @@
 
 * Every .yaml file parses (HA's !include style tags are accepted).
 * weather_rest.yaml defines the sensors the Weather dashboard uses.
+* shade_automations.yaml raises shades above 8 mph, lowers only below 4 mph, and
+  lowers the living room shade (id 3) when sunny, every 30 min between noon and 4 pm.
 * wind_direction_history.sql runs against a minimal recorder schema and returns
   samples as "bucket:direction:max_mph,...", only for the last 6 hours.
 
@@ -46,6 +48,24 @@ def check_rest_sensors():
     print("ok  weather_rest.yaml defines all dashboard sensors")
 
 
+def check_shade_automations():
+    with open(HA_DIR / "shade_automations.yaml", encoding="utf-8") as f:
+        autos = {a["alias"]: a for a in yaml.load(f, Loader=_Loader)}
+    wind = autos["Wind > 8 mph: raise all shades"]
+    assert wind["triggers"][0]["above"] == 8, wind["triggers"]
+    heat = autos["Heat 80F+: lower all shades"]
+    assert any("< 4" in c.get("value_template", "") for c in heat["conditions"])
+    sun = autos["Sunny noon to 4 pm: lower living room shade"]
+    assert sun["triggers"] == [{"trigger": "time_pattern", "minutes": "/30"}]
+    conds = sun["conditions"]
+    assert {"condition": "time", "after": "12:00:00", "before": "16:00:00"} in conds
+    assert any(c.get("state") == "sunny" for c in conds), conds
+    assert any("< 4" in c.get("value_template", "") for c in conds), conds
+    assert sun["actions"] == [{"action": "mqtt.publish", "data": {
+        "topic": "somfy/shades/3/direction/set", "payload": "1"}}], sun["actions"]
+    print("ok  shade_automations.yaml: raise > 8 mph, lower only < 4 mph, sunny rule")
+
+
 def check_sql():
     db = sqlite3.connect(":memory:")
     db.executescript(
@@ -78,6 +98,7 @@ def check_sql():
 def main():
     check_yaml()
     check_rest_sensors()
+    check_shade_automations()
     check_sql()
     print("all Home Assistant config checks passed")
     return 0
