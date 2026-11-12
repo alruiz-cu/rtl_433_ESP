@@ -1,0 +1,56 @@
+# Copyright (c) 2026 Al Ruiz. All rights reserved.
+#
+# Free weather feeds that need no API key. Added 2026-11-03 for the Weather
+# dashboard. Lives on Home Assistant as /homeassistant/weather_rest.yaml and is
+# loaded by this line in configuration.yaml (needs a full HA restart to load):
+#   rest: !include weather_rest.yaml
+# Replace LAT and LON (4 decimals, e.g. 39.1234 and -104.1234) with the home
+# location from Settings -> System -> General before copying to HA.
+
+# NWS active alerts for this point (api.weather.gov asks for a User-Agent).
+- resource: "https://api.weather.gov/alerts/active?point=LAT,LON"
+  headers:
+    User-Agent: "home-assistant-weather-dashboard"
+    Accept: "application/geo+json"
+  scan_interval: 300
+  timeout: 20
+  sensor:
+    - name: "NWS alert count"
+      unique_id: nws_alert_count
+      icon: mdi:alert
+      value_template: "{{ value_json.features | length }}"
+    - name: "NWS alerts"
+      unique_id: nws_alert_events
+      icon: mdi:alert-octagon
+      value_template: >-
+        {% set e = value_json.features | map(attribute='properties.event') | unique | join(', ') %}
+        {{ (e if e else 'None')[:250] }}
+    - name: "NWS alert headline"
+      unique_id: nws_alert_headline
+      icon: mdi:alert-circle-outline
+      value_template: >-
+        {% set h = value_json.features | map(attribute='properties.headline') | first | default('') %}
+        {{ (h if h else 'None')[:250] }}
+
+# Open-Meteo air quality (US AQI, PM2.5, ozone) for this point.
+- resource: "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=LAT&longitude=LON&current=us_aqi,pm2_5,ozone&timezone=auto"
+  scan_interval: 1800
+  timeout: 20
+  sensor:
+    - name: "Air quality index"
+      unique_id: open_meteo_us_aqi
+      device_class: aqi
+      state_class: measurement
+      value_template: "{{ value_json.current.us_aqi }}"
+    - name: "PM2.5"
+      unique_id: open_meteo_pm25
+      device_class: pm25
+      state_class: measurement
+      unit_of_measurement: "µg/m³"
+      value_template: "{{ value_json.current.pm2_5 }}"
+    - name: "Ozone"
+      unique_id: open_meteo_ozone
+      device_class: ozone
+      state_class: measurement
+      unit_of_measurement: "µg/m³"
+      value_template: "{{ value_json.current.ozone }}"

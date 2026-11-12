@@ -1,0 +1,68 @@
+# Copyright (c) 2026 Al Ruiz. All rights reserved.
+#
+# Weather dashboard cards added 2026-11-03 (sections dashboard, raw YAML).
+# Paste the pieces into the dashboard's Raw configuration editor.
+# Needs sensor.wind_direction_history (wind_direction_history.sql) and the REST
+# sensors in weather_rest.yaml. Custom graphics are markdown cards that render a
+# Jinja-built SVG as a data-URI <img> (HA strips raw <svg> and inline styles).
+# Each top-level key below is one piece; paste its contents at the place named
+# in the comment (re-indent to match the surrounding dashboard YAML).
+
+# 1. "Right now" section: NWS alert banner, inserted right after the heading
+right_now_nws_alert_card:
+  - type: conditional
+    conditions:
+      - condition: numeric_state
+        entity: sensor.nws_alert_count
+        above: 0
+    card:
+      type: markdown
+      content: >-
+        <ha-alert alert-type="warning"><b>NWS: {{ states('sensor.nws_alerts') }}</b><br>{{ states('sensor.nws_alert_headline') }}</ha-alert>
+    grid_options:
+      columns: 12
+      rows: auto
+
+# 2. "Right now" entities card: rows added after the Snow row
+right_now_entity_rows:
+  - entity: sensor.air_quality_index
+    name: Air quality (US AQI, 0-50 good)
+    icon: mdi:air-filter
+  - entity: sensor.pm2_5
+    name: Fine particles (PM2.5)
+    icon: mdi:blur
+  - entity: sensor.ozone
+    name: Ozone
+    icon: mdi:molecule
+  - entity: sensor.nws_alerts
+    name: NWS weather alerts
+    icon: mdi:alert
+  - type: attribute
+    entity: weather.nws_LAT_LON_kapa
+    attribute: visibility
+    name: Visibility
+    suffix: ' mi'
+    icon: mdi:eye
+
+# 3. Last section (full-width grid): wind direction timeline + wind rose
+wind_direction_section:
+  - type: grid
+    column_span: 3
+    cards:
+      - type: heading
+        heading: Wind direction, last 6 hours
+        icon: mdi:compass-outline
+      - type: markdown
+        content: |-
+          {% set raw = state_attr('sensor.wind_direction_history', 'samples') or '' %}{% set nb = (as_timestamp(now()) / 300) | int %}{% set b0 = nb - 72 %}{% set ns = namespace(s='', n=0) %}{% for p in raw.split(',') if p.count(':') == 2 %}{% set f = p.split(':') %}{% set b = f[0] | int(0) %}{% if b > b0 %}{% set d = f[1] | float(0) %}{% set v = f[2] | float(0) %}{% set x = (40 + (b - b0) / 72 * 550) | round(1) %}{% set y = (192 - d / 2) | round(1) %}{% set c = '#9e9e9e' if v < 1 else '#43a047' if v < 4 else '#fb8c00' if v <= 10 else '#e53935' %}{% set ns.s = ns.s ~ "<circle cx='" ~ x ~ "' cy='" ~ y ~ "' r='5' fill='" ~ c ~ "'/>" %}{% set ns.n = ns.n + 1 %}{% endif %}{% endfor %}{% set g = namespace(s='') %}{% for d, l in [(0, 'N'), (90, 'E'), (180, 'S'), (270, 'W'), (360, 'N')] %}{% set y = 192 - d / 2 %}{% set g.s = g.s ~ "<line x1='40' y1='" ~ y ~ "' x2='590' y2='" ~ y ~ "' stroke='#9e9e9e' stroke-opacity='0.4'/><text x='22' y='" ~ (y + 7) ~ "' font-family='sans-serif' font-size='20' font-weight='bold' fill='#757575' text-anchor='middle'>" ~ l ~ "</text>" %}{% endfor %}{% set t0 = b0 * 300 %}{% set h0 = ((t0 // 3600) + 1) * 3600 %}{% for i in range(6) %}{% set ts = h0 + i * 3600 %}{% set x = (40 + (ts - t0) / 21600 * 550) | round(1) %}{% set g.s = g.s ~ "<line x1='" ~ x ~ "' y1='12' x2='" ~ x ~ "' y2='192' stroke='#9e9e9e' stroke-opacity='0.3' stroke-dasharray='3 3'/><text x='" ~ x ~ "' y='216' font-family='sans-serif' font-size='18' fill='#757575' text-anchor='middle'>" ~ (ts | timestamp_custom('%-I%p') | lower | replace('m', '')) ~ "</text>" %}{% endfor %}{% for c, l, x in [('#9e9e9e', 'Calm', 20), ('#43a047', 'Under 4 mph', 110), ('#fb8c00', '4 to 10 mph', 262), ('#e53935', 'Over 10 mph', 420)] %}{% set g.s = g.s ~ "<circle cx='" ~ x ~ "' cy='240' r='6' fill='" ~ c ~ "'/><text x='" ~ (x + 10) ~ "' y='246' font-family='sans-serif' font-size='17' fill='#757575'>" ~ l ~ "</text>" %}{% endfor %}{% set s = "<svg xmlns='http://www.w3.org/2000/svg' width='600' height='256' viewBox='0 0 600 256'>" ~ g.s ~ ns.s ~ "</svg>" %}{% if ns.n == 0 %}<center>No wind readings in the last 6 hours</center>{% else %}<center><img src="data:image/svg+xml;utf8,{{ s | urlencode }}" style="max-width:100%"><br><small>Direction the wind came FROM, one dot per 5 minutes, colored by wind speed</small></center>{% endif %}
+        grid_options:
+          columns: 12
+          rows: auto
+      - type: markdown
+        content: |-
+          {% set raw = state_attr('sensor.wind_direction_history', 'samples') or '' %}{% set nb = (as_timestamp(now()) / 300) | int %}{% set b0 = nb - 72 %}{% set ns = namespace(p=[], calm=0) %}{% for p in raw.split(',') if p.count(':') == 2 %}{% set f = p.split(':') %}{% if f[0] | int(0) > b0 %}{% if f[2] | float(0) < 1 %}{% set ns.calm = ns.calm + 1 %}{% else %}{% set ns.p = ns.p + [{'k': (((f[1] | float(0)) / 22.5) | round(0) | int) % 16, 'v': f[2] | float(0)}] %}{% endif %}{% endif %}{% endfor %}{% set names = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'] %}{% set tot = (ns.p | length) + ns.calm %}{% set r = namespace(s='', mx=1, top=0, topn=0) %}{% for i in range(16) %}{% set n = ns.p | selectattr('k', 'eq', i) | list | length %}{% if n > r.topn %}{% set r.topn = n %}{% set r.top = i %}{% endif %}{% endfor %}{% set r.mx = [r.topn, 1] | max %}{% for rr in [27, 53, 80] %}{% set r.s = r.s ~ "<circle cx='100' cy='100' r='" ~ rr ~ "' fill='none' stroke='#9e9e9e' stroke-opacity='0.4'/>" %}{% endfor %}{% for i in range(16) %}{% set sel = ns.p | selectattr('k', 'eq', i) | list %}{% set n = sel | length %}{% if n > 0 %}{% set ln = 80 * n / r.mx %}{% set av = (sel | map(attribute='v') | sum) / n %}{% set c = '#43a047' if av < 4 else '#fb8c00' if av <= 10 else '#e53935' %}{% set a1 = (i * 22.5 - 10) * pi / 180 %}{% set a2 = (i * 22.5 + 10) * pi / 180 %}{% set r.s = r.s ~ "<path d='M100 100 L" ~ (100 + ln * (a1 | sin)) | round(1) ~ " " ~ (100 - ln * (a1 | cos)) | round(1) ~ " A" ~ ln | round(1) ~ " " ~ ln | round(1) ~ " 0 0 1 " ~ (100 + ln * (a2 | sin)) | round(1) ~ " " ~ (100 - ln * (a2 | cos)) | round(1) ~ " Z' fill='" ~ c ~ "' fill-opacity='0.85'/>" %}{% endif %}{% endfor %}{% for l, x, y in [('N', 100, 8), ('E', 194, 105), ('S', 100, 201), ('W', 6, 105)] %}{% set r.s = r.s ~ "<text x='" ~ x ~ "' y='" ~ y ~ "' font-family='sans-serif' font-size='14' font-weight='bold' fill='" ~ ('#e53935' if l == 'N' else '#757575') ~ "' text-anchor='middle'>" ~ l ~ "</text>" %}{% endfor %}{% set s = "<svg xmlns='http://www.w3.org/2000/svg' width='210' height='215' viewBox='-5 -8 210 215'>" ~ r.s ~ "</svg>" %}{% if tot == 0 %}<center>No wind readings in the last 6 hours</center>{% else %}<center><img src="data:image/svg+xml;utf8,{{ s | urlencode }}" style="max-width:100%;width:230px"><br>Mostly from <b>{{ names[r.top] }}</b> ({{ (100 * r.topn / tot) | round(0) | int }}% of the time){% if ns.calm > 0 %}<br><small>Calm {{ (100 * ns.calm / tot) | round(0) | int }}% of the time</small>{% endif %}</center>{% endif %}
+        grid_options:
+          columns: 12
+          rows: auto
+# The 6-hour wind speed and 6-hour temperature history-graph cards follow in
+# the same section (separate graphs; the combined one was removed on request).

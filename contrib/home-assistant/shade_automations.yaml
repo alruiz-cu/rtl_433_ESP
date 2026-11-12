@@ -8,17 +8,19 @@
 #   * sensor.acurite_5n1_c_364_*   -> your 5n1's entity ids (device id 364 here)
 #   * notify.mobile_app_als_iphone -> your phone's notify action
 #   * somfy/shades/1..4            -> ESPSomfy root topic "somfy" and shade ids
+#                                     (1 Dining, 2 Guest, 3 Living room, 4 Bedroom)
+#   * weather.nws_LAT_LON_kapa      -> your NWS weather entity (real LAT/LON in HA)
 #
 # ESPSomfy direction/set payloads: -1 = up (open), 1 = down (close).
 # Units follow the Home Assistant unit system (imperial here: mph, degF, in).
 
-- alias: "Wind > 4 mph: raise all shades"
-  description: Raises all Somfy shades when the 5n1 wind average rises above 4 mph
+- alias: "Wind > 8 mph: raise all shades"
+  description: Raises all Somfy shades when the 5n1 wind average rises above 8 mph
   mode: single
   triggers:
     - trigger: numeric_state
       entity_id: sensor.acurite_5n1_c_364_wind_average
-      above: 4
+      above: 8
   actions:
     - action: mqtt.publish
       data: {topic: somfy/shades/1/direction/set, payload: "-1"}
@@ -79,7 +81,7 @@
 - alias: "Heat 80F+: lower all shades"
   description: >-
     Lowers all shades when the temperature crosses above 80 F in daylight, but
-    only if it is calm and has not rained in the last 30 minutes. Fires on the
+    only if the wind is below 4 mph and it has not rained in the last 30 minutes. Fires on the
     crossing only; it does not re-lower after wind or rain clears.
   mode: single
   triggers:
@@ -91,7 +93,7 @@
       entity_id: sun.sun
       state: above_horizon
     - condition: template
-      value_template: "{{ states('sensor.acurite_5n1_c_364_wind_average') | float(99) <= 4 }}"
+      value_template: "{{ states('sensor.acurite_5n1_c_364_wind_average') | float(99) < 4 }}"
     - condition: template
       value_template: "{{ (now() - states.sensor.acurite_5n1_c_364_rain.last_changed).total_seconds() > 1800 }}"
   actions:
@@ -103,6 +105,30 @@
       data: {topic: somfy/shades/3/direction/set, payload: "1"}
     - action: mqtt.publish
       data: {topic: somfy/shades/4/direction/set, payload: "1"}
+
+- alias: "Sunny noon to 4 pm: lower living room shade"
+  description: >-
+    Every 30 minutes from 12:00 to 3:30 pm, lowers the living room shade if NWS
+    reports sunny and the wind is below 4 mph. Skipped if it rained in the last
+    30 minutes, so it does not fight the rain rule.
+  mode: single
+  triggers:
+    - trigger: time_pattern
+      minutes: "/30"
+  conditions:
+    - condition: time
+      after: "12:00:00"
+      before: "16:00:00"
+    - condition: state
+      entity_id: weather.nws_LAT_LON_kapa
+      state: sunny
+    - condition: template
+      value_template: "{{ states('sensor.acurite_5n1_c_364_wind_average') | float(99) < 4 }}"
+    - condition: template
+      value_template: "{{ (now() - states.sensor.acurite_5n1_c_364_rain.last_changed).total_seconds() > 1800 }}"
+  actions:
+    - action: mqtt.publish
+      data: {topic: somfy/shades/3/direction/set, payload: "1"}
 
 - alias: "AcuRite 5n1 low battery or no data: push to iPhone"
   description: Push alert if the 5n1 battery is low or no signal for 2 hours
