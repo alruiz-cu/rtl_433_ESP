@@ -8,6 +8,8 @@
 # location from Settings -> System -> General before copying to HA.
 
 # NWS active alerts for this point (api.weather.gov asks for a User-Agent).
+# Use 'No alerts', never the word None: HA turns a template result of None into
+# 'unknown'.
 - resource: "https://api.weather.gov/alerts/active?point=LAT,LON"
   headers:
     User-Agent: "home-assistant-weather-dashboard"
@@ -24,13 +26,13 @@
       icon: mdi:alert-octagon
       value_template: >-
         {% set e = value_json.features | map(attribute='properties.event') | unique | join(', ') %}
-        {{ (e if e else 'None')[:250] }}
+        {{ (e if e else 'No alerts')[:250] }}
     - name: "NWS alert headline"
       unique_id: nws_alert_headline
       icon: mdi:alert-circle-outline
       value_template: >-
         {% set h = value_json.features | map(attribute='properties.headline') | first | default('') %}
-        {{ (h if h else 'None')[:250] }}
+        {{ (h if h else 'No alerts')[:250] }}
 
 # Open-Meteo air quality (US AQI, PM2.5, ozone) for this point.
 - resource: "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=LAT&longitude=LON&current=us_aqi,pm2_5,ozone&timezone=auto"
