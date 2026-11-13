@@ -51,13 +51,32 @@ install after a backup.
 
 Use the `.local` names below instead of IP addresses; they keep working when the
 router changes a board's IP. Home Assistant itself talks to both boards through
-the MQTT broker, so an IP change never breaks the shades or the weather data.
+the MQTT broker, so a board IP change never breaks the shades or the weather data.
+
+Both boards connect to the MQTT broker at **192.168.1.60**, so Home Assistant's
+address must never change. It is set twice: static IPv4 in HA (Settings ->
+System -> Network) and an Address Reservation in the router (Setup -> LAN Setup)
+for MAC `08:00:27:4D:8D:FD`.
+
+Router Address Reservations (Setup -> LAN Setup):
+
+| IP | Device name | MAC |
+|---|---|---|
+| 192.168.1.47 | esp32-5FBCAC (Board 2, weather receiver) | `68:09:47:5F:BC:AC` |
+| 192.168.1.38 | ESPSomfyRTS (Board 1, shades) | `8C:94:DF:6E:41:B0` |
+| 192.168.1.60 | Home Assistant VM | `08:00:27:4D:8D:FD` |
+
+If a board is ever replaced, update its reservation to the new board's MAC
+(the old weather board's reservation was left on the dead ESP32 for weeks, so
+the new board kept changing IP). Restart Board 2 from HA without unplugging it:
+Developer tools -> Actions -> `mqtt.publish`, topic
+`home/OMG_rtl_433_ESP/commands/MQTTtoSYS/config`, payload `{"cmd":"restart"}`.
 
 | What | Address | Notes |
 |---|---|---|
-| Home Assistant OS (VirtualBox VM on the PC) | <http://homeassistant.local> | Browser access by IP or `:8123` can be refused; use the `.local` name. The PC must stay on. |
-| Board 1: ESPSomfy-RTS shade controller | <http://ESPSomfyRTS.local> (was 192.168.1.38) | Online. Shade movement not retested after the module reseat; shades may need physical re-pairing. |
-| Board 2: weather receiver (new ESP32, MAC ends `bc:ac`) | <http://OMG_rtl_433_ESP.local> (was 192.168.1.3, before that .64) | OpenMQTTGateway built from `~/omg-build` with this library; decodes the AcuRite 5n1 (id 364), lightning detector (6045M id 183) and rain gauge (Rain899 id 728). Use the name, not the IP: the router hands out a different IP from time to time. The page asks for the OMG portal login. |
+| Home Assistant OS (VirtualBox VM on the PC) | <http://homeassistant.local> = 192.168.1.60 (static in HA and reserved in the router) | Browser access by IP or `:8123` can be refused; use the `.local` name. The PC must stay on. |
+| Board 1: ESPSomfy-RTS shade controller | <http://ESPSomfyRTS.local> = 192.168.1.38 (reserved in the router) | Online. Shade movement not retested after the module reseat; shades may need physical re-pairing. |
+| Board 2: weather receiver (new ESP32, MAC ends `bc:ac`) | <http://OMG_rtl_433_ESP.local> = 192.168.1.47 (reserved in the router since 2026-11-12) | OpenMQTTGateway built from `~/omg-build` with this library; decodes the AcuRite 5n1 (id 364), lightning detector (6045M id 183) and rain gauge (Rain899 id 728). The page asks for the OMG portal login. |
 | Old ESP32 (MAC ends `d6:48`) | - | Faulty (`pulses: 0`). Do not reuse. |
 | TP-Link Kasa HS220 dimmer | 192.168.1.22 | Discovered by HA; press **Add** under Settings -> Devices & services to finish. |
 
@@ -167,7 +186,6 @@ Not installed yet as of this snapshot.
   Life/Treatlife (Tuya), JellyFish, VeSync, Modern Forms): each needs the
   owner's own vendor sign-in in Settings -> Devices & services. "Revolo" and
   "smart control" still need clarifying.
-- Optional: reserve IPs for both boards in the router. Not needed while the `.local` names are used; Home Assistant reaches both boards through MQTT, never by IP.
 - Watchdog/auto-restart plan for the HA VM, Mosquitto and the PC (e.g. HASS.Agent).
 - Xcel electric meter: no ready-made HA integration found yet.
 - Samba share (above), if wanted.
