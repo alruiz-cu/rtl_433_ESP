@@ -108,3 +108,21 @@
       json_attributes:
         - time
         - snowfall
+
+# Open-Meteo historical daily snowfall (inches) for the past 365 days, so the
+# Information dashboard can show the last snowfall even when it was months ago.
+# Estimated for this location (no snow gauge). Refreshed once a day.
+# State = date of the last day with snowfall (YYYY-MM-DD) or "none".
+- resource_template: "https://archive-api.open-meteo.com/v1/archive?latitude=LAT&longitude=LON&start_date={{ (now() - timedelta(days=365)).strftime('%Y-%m-%d') }}&end_date={{ now().strftime('%Y-%m-%d') }}&daily=snowfall_sum&precipitation_unit=inch&timezone=auto"
+  scan_interval: 86400
+  timeout: 60
+  sensor:
+    - name: "Snowfall history 365 days"
+      unique_id: snowfall_history_365_days
+      icon: mdi:snowflake-melt
+      value_template: >-
+        {% set t = value_json.daily.time %}{% set v = value_json.daily.snowfall_sum %}{% set ns = namespace(last='none') %}{% for i in range(t | length) if v[i] is number and v[i] > 0 %}{% set ns.last = t[i] %}{% endfor %}{{ ns.last }}
+      json_attributes_path: "$.daily"
+      json_attributes:
+        - time
+        - snowfall_sum

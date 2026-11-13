@@ -5,7 +5,7 @@
 
 - alias: "Freeze forecast: retry when it has no data"
   description: >-
-    The 14-day freeze and snowfall forecasts refresh once a day. If a fetch
+    The freeze and snowfall forecasts and the snowfall history refresh once a day. If a fetch
     fails it would stay empty for a day, so retry every 15 minutes while
     either has no data.
   mode: single
@@ -16,10 +16,12 @@
     - condition: template
       value_template: >-
         {{ not state_attr('sensor.freeze_forecast_14_days', 'time')
-           or not state_attr('sensor.snowfall_past_7_and_next_14_days', 'time') }}
+           or not state_attr('sensor.snowfall_past_7_and_next_14_days', 'time')
+           or not state_attr('sensor.snowfall_history_365_days', 'time') }}
   actions:
     - action: homeassistant.update_entity
       target:
         entity_id:
           - sensor.freeze_forecast_14_days
           - sensor.snowfall_past_7_and_next_14_days
+          - sensor.snowfall_history_365_days

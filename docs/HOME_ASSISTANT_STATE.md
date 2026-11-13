@@ -106,6 +106,9 @@ Files on the HA box (edit with the **File editor** app, or over Samba below):
   and the next 14 (`sensor.snowfall_past_7_and_next_14_days`, Open-Meteo,
   refreshed once a day, same retry automation). The past 7 days are Open-Meteo's
   estimate for this location: the weather station has no snow gauge.
+- `weather_rest.yaml` also holds `sensor.snowfall_history_365_days` (Open-Meteo
+  archive, daily snowfall for the past year, refreshed once a day, same retry
+  automation) so "Last snowfall" works even when it was months ago.
 - `/homeassistant/weather_rest.yaml` = [contrib/home-assistant/weather_rest.yaml](../contrib/home-assistant/weather_rest.yaml):
   NWS alerts (`sensor.nws_alert_count`, `sensor.nws_alerts`,
   `sensor.nws_alert_headline`) and Open-Meteo air quality
@@ -128,7 +131,9 @@ Set up through the UI (not in YAML):
 - **SQL integration** -> `sensor.freezing_last_7_days` (state = times the
   outdoor temperature reached 32 F or below in the last 7 days, attribute
   `freeze_minutes` = total minutes, `last_freeze_start` = unix time the last
-  freezing stretch began), query in
+  freezing stretch began, `last_freeze_ever` = last time at or below 32 F in all
+  recorded history including HA's hourly long-term statistics,
+  `history_since` = when that history starts, 2026-10-19), query in
   [contrib/home-assistant/freeze_last_7_days.sql](../contrib/home-assistant/freeze_last_7_days.sql).
   HA's SQL form requires the query to start with `SELECT`.
 - **NWS weather** -> `weather.nws_LAT_LON_kapa` (forecast, visibility).
@@ -150,7 +155,7 @@ dashboards use built-in cards only.
 | Weather & Shades | default | Weather only now (see below) |
 | Shades | `/dashboard-shades` | Shade controls |
 | Hardware | `/dashboard-hardware` | Shade board signal, free memory and firmware; chip temperatures (weather board ESP32, PC graphics card, PC motherboard), uptime as yrs:mos:wks:days:hh:mm:ss (weather board, PC, HA machine), HA machine CPU/memory/disk/network, sensor batteries and signal, PC load and disk space |
-| Information | `/dashboard-information` | Freezing temperatures in the last 7 days (how many times it reached 32 F or below, total time, when it last dropped to 32 F) the freeze forecast for today and the next 14 days (dates, hours and lows), and snowfall for the last 7 days (count, total, last snowfall, amounts by day) and the next 14 days (dates, hours, amounts). Config in [contrib/home-assistant/information_dashboard.yaml](../contrib/home-assistant/information_dashboard.yaml). |
+| Information | `/dashboard-information` | Freezing temperatures in the last 7 days (how many times it reached 32 F or below, total time, and the last time it was at or below 32 F in all recorded history) the freeze forecast for today and the next 14 days (dates, hours and lows), and snowfall for the last 7 days (count, total, amounts by day, and the last snowfall even if it was months ago) and the next 14 days (dates, hours, amounts). Config in [contrib/home-assistant/information_dashboard.yaml](../contrib/home-assistant/information_dashboard.yaml). |
 
 Weather dashboard, top to bottom:
 
