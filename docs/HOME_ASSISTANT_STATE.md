@@ -49,11 +49,15 @@ install after a backup.
 
 ## Machines and addresses
 
+Use the `.local` names below instead of IP addresses; they keep working when the
+router changes a board's IP. Home Assistant itself talks to both boards through
+the MQTT broker, so an IP change never breaks the shades or the weather data.
+
 | What | Address | Notes |
 |---|---|---|
 | Home Assistant OS (VirtualBox VM on the PC) | <http://homeassistant.local> | Browser access by IP or `:8123` can be refused; use the `.local` name. The PC must stay on. |
-| Board 1: ESPSomfy-RTS shade controller | 192.168.1.38 | Online. Shade movement not retested after the module reseat; shades may need physical re-pairing. |
-| Board 2: weather receiver (new ESP32, MAC ends `bc:ac`) | 192.168.1.3 (was 192.168.1.64) | OpenMQTTGateway built from `~/omg-build` with this library; decodes the AcuRite 5n1 (id 364), lightning detector (6045M id 183) and rain gauge (Rain899 id 728). Its address changed by DHCP: reserve one IP in the router (still to do). |
+| Board 1: ESPSomfy-RTS shade controller | <http://ESPSomfyRTS.local> (was 192.168.1.38) | Online. Shade movement not retested after the module reseat; shades may need physical re-pairing. |
+| Board 2: weather receiver (new ESP32, MAC ends `bc:ac`) | <http://OMG_rtl_433_ESP.local> (was 192.168.1.3, before that .64) | OpenMQTTGateway built from `~/omg-build` with this library; decodes the AcuRite 5n1 (id 364), lightning detector (6045M id 183) and rain gauge (Rain899 id 728). Use the name, not the IP: the router hands out a different IP from time to time. The page asks for the OMG portal login. |
 | Old ESP32 (MAC ends `d6:48`) | - | Faulty (`pulses: 0`). Do not reuse. |
 | TP-Link Kasa HS220 dimmer | 192.168.1.22 | Discovered by HA; press **Add** under Settings -> Devices & services to finish. |
 
@@ -163,7 +167,7 @@ Not installed yet as of this snapshot.
   Life/Treatlife (Tuya), JellyFish, VeSync, Modern Forms): each needs the
   owner's own vendor sign-in in Settings -> Devices & services. "Revolo" and
   "smart control" still need clarifying.
-- Reserve an IP for Board 2 in the router (it moved from 192.168.1.64 to 192.168.1.3).
+- Optional: reserve IPs for both boards in the router. Not needed while the `.local` names are used; Home Assistant reaches both boards through MQTT, never by IP.
 - Watchdog/auto-restart plan for the HA VM, Mosquitto and the PC (e.g. HASS.Agent).
 - Xcel electric meter: no ready-made HA integration found yet.
 - Samba share (above), if wanted.
