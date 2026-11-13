@@ -11,6 +11,8 @@
 -- below 32 F in the window. A dip that is already under way when the window
 -- starts counts as one time. Unavailable readings end a freezing stretch, and
 -- one gap between readings counts for at most 3 hours.
+-- The third column, last_freeze_start, is the unix time the most recent
+-- freezing stretch began (NULL if none in the window).
 SELECT
   (SELECT COUNT(*) FROM (
      SELECT v <= 32 AS frz, LAG(v <= 32) OVER (ORDER BY ts) AS prev
@@ -28,5 +30,13 @@ SELECT
     FROM states s JOIN states_meta m ON s.metadata_id = m.metadata_id
     WHERE m.entity_id = 'sensor.acurite_5n1_c_364_temperature'
       AND s.last_updated_ts > CAST(strftime('%s','now') AS INTEGER) - 604800))
-   WHERE frz = 1) AS freeze_minutes
+   WHERE frz = 1) AS freeze_minutes,
+  (SELECT CAST(MAX(ts) AS INTEGER) FROM (
+     SELECT ts, v <= 32 AS frz, LAG(v <= 32) OVER (ORDER BY ts) AS prev
+     FROM (SELECT s.last_updated_ts AS ts,
+           CASE WHEN s.state GLOB '[0-9-]*' THEN CAST(s.state AS REAL) END AS v
+    FROM states s JOIN states_meta m ON s.metadata_id = m.metadata_id
+    WHERE m.entity_id = 'sensor.acurite_5n1_c_364_temperature'
+      AND s.last_updated_ts > CAST(strftime('%s','now') AS INTEGER) - 604800) WHERE v IS NOT NULL)
+   WHERE frz = 1 AND (prev IS NULL OR prev = 0)) AS last_freeze_start
 LIMIT 1;

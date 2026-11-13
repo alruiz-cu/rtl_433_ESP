@@ -97,6 +97,11 @@ Files on the HA box (edit with the **File editor** app, or over Samba below):
   `weather_rest.yaml` also reads its firmware version and whether an update
   exists (`sensor.shade_board_firmware`). ESPSomfy-RTS has no temperature or
   uptime reading.
+- `weather_rest.yaml` also holds the 14-day freeze forecast
+  (`sensor.freeze_forecast_14_days`, Open-Meteo hourly temperature, refreshed
+  once a day; NWS only forecasts about 7 days). If a fetch fails, the
+  automation in [contrib/home-assistant/information_automations.yaml](../contrib/home-assistant/information_automations.yaml)
+  retries every 15 minutes until it has data.
 - `/homeassistant/weather_rest.yaml` = [contrib/home-assistant/weather_rest.yaml](../contrib/home-assistant/weather_rest.yaml):
   NWS alerts (`sensor.nws_alert_count`, `sensor.nws_alerts`,
   `sensor.nws_alert_headline`) and Open-Meteo air quality
@@ -118,7 +123,8 @@ Set up through the UI (not in YAML):
   [contrib/home-assistant/wind_direction_history.sql](../contrib/home-assistant/wind_direction_history.sql).
 - **SQL integration** -> `sensor.freezing_last_7_days` (state = times the
   outdoor temperature reached 32 F or below in the last 7 days, attribute
-  `freeze_minutes` = total minutes), query in
+  `freeze_minutes` = total minutes, `last_freeze_start` = unix time the last
+  freezing stretch began), query in
   [contrib/home-assistant/freeze_last_7_days.sql](../contrib/home-assistant/freeze_last_7_days.sql).
   HA's SQL form requires the query to start with `SELECT`.
 - **NWS weather** -> `weather.nws_LAT_LON_kapa` (forecast, visibility).
@@ -140,7 +146,7 @@ dashboards use built-in cards only.
 | Weather & Shades | default | Weather only now (see below) |
 | Shades | `/dashboard-shades` | Shade controls |
 | Hardware | `/dashboard-hardware` | Shade board signal, free memory and firmware; chip temperatures (weather board ESP32, PC graphics card, PC motherboard), uptime as yrs:mos:wks:days:hh:mm:ss (weather board, PC, HA machine), HA machine CPU/memory/disk/network, sensor batteries and signal, PC load and disk space |
-| Information | `/dashboard-information` | Freezing temperatures in the last 7 days: how many times it reached 32 F or below and the total time |
+| Information | `/dashboard-information` | Freezing temperatures in the last 7 days (how many times it reached 32 F or below, total time, when it last dropped to 32 F) and the freeze forecast for today and the next 14 days (dates, hours and lows). Config in [contrib/home-assistant/information_dashboard.yaml](../contrib/home-assistant/information_dashboard.yaml). |
 
 Weather dashboard, top to bottom:
 

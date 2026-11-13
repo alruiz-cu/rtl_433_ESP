@@ -44,7 +44,7 @@ def check_rest_sensors():
     ids = {s["unique_id"] for feed in feeds for s in feed["sensor"]}
     want = {"nws_alert_count", "nws_alert_events", "nws_alert_headline",
             "open_meteo_us_aqi", "open_meteo_pm25", "open_meteo_ozone",
-            "shade_board_firmware"}
+            "shade_board_firmware", "freeze_forecast_14_days"}
     assert want <= ids, f"missing REST sensors: {want - ids}"
     for feed in feeds:
         local = feed["resource"].startswith("http://192.168.1.")
@@ -128,11 +128,12 @@ def check_freeze_sql():
     db.executemany("INSERT INTO states VALUES (?, ?, ?)", rows)
     sql = (HA_DIR / "freeze_last_7_days.sql").read_text(encoding="utf-8")
     sql = "\n".join(l for l in sql.splitlines() if not l.lstrip().startswith("--"))
-    count, minutes = db.execute(sql).fetchone()
+    count, minutes, last = db.execute(sql).fetchone()
     assert (count, minutes) == (3, 60 + 30 + 10 + 180), (count, minutes)
+    assert last == now - 10 * h, (last, now - 10 * h)
     db.execute("DELETE FROM states")
-    count, minutes = db.execute(sql).fetchone()
-    assert (count, minutes) == (0, 0), (count, minutes)
+    count, minutes, last = db.execute(sql).fetchone()
+    assert (count, minutes, last) == (0, 0, None), (count, minutes, last)
     print(f"ok  freeze_last_7_days.sql -> {count} times, {minutes} min on empty data; test data ok")
 
 
@@ -191,12 +192,26 @@ def check_espsomfy_stats():
     print("ok  espsomfy_stats.py parses wifiStrength and memStatus from a fake board")
 
 
+def check_freeze_forecast():
+    with open(HA_DIR / "weather_rest.yaml", encoding="utf-8") as f:
+        feeds = yaml.load(f, Loader=_Loader)
+    feed = next(x for x in feeds
+                if any(s["unique_id"] == "freeze_forecast_14_days" for s in x["sensor"]))
+    url = feed["resource"]
+    assert "forecast_days=14" in url and "temperature_unit=fahrenheit" in url, url
+    assert feed["scan_interval"] == 86400, feed["scan_interval"]
+    sensor = feed["sensor"][0]
+    assert sensor["json_attributes"] == ["time", "temperature_2m"], sensor
+    print("ok  freeze forecast: Open-Meteo 14 days hourly, refreshed daily")
+
+
 def main():
     check_yaml()
     check_rest_sensors()
     check_shade_automations()
     check_sql()
     check_freeze_sql()
+    check_freeze_forecast()
     check_espsomfy_stats()
     print("all Home Assistant config checks passed")
     return 0
