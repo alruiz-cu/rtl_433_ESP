@@ -6,6 +6,10 @@ A low-cost, local-only setup that receives live weather from an AcuRite 5-in-1
 sensor and automatically moves four Somfy RTS shades to protect them (wind,
 rain, sunset, heat). It uses two ESP32 + CC1101 boards and Home Assistant.
 
+> **Before changing anything:** do not rename entities, devices, shades or
+> MQTT topics, and do not update the boards' firmware. See the rules in
+> [HOME_ASSISTANT_STATE.md](HOME_ASSISTANT_STATE.md#rules-read-before-changing-anything).
+
 ```text
 AcuRite 5n1 --433.92 MHz--> Board 2: ESP32+CC1101 (OpenMQTTGateway + rtl_433_ESP)
                                         | MQTT
@@ -108,7 +112,7 @@ Automations are in
 |---|---|---|
 | Wind | wind average rises above 8 mph | raise all shades |
 | Rain | 5n1 rain total increases (max once an hour) | raise all shades, push "It's raining" |
-| Sunset | sunset | raise all shades |
+| Sunset | 1 hour before sunset | raise all shades |
 | Heat | temperature crosses above 80 F, in daylight, wind below 4 mph, no rain for 30 min | lower all shades |
 | Sun | every 30 min from noon to 4 pm, if NWS says sunny, wind below 4 mph, no rain for 30 min | lower the living room shade |
 | Sensor health | 5n1 battery low, or no signal for 2 hours | push alert |

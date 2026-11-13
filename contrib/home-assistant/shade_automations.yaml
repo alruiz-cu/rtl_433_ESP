@@ -62,12 +62,13 @@
         title: "It's raining"
         message: "Rain detected. All shades raised."
 
-- alias: "Sunset: raise all shades"
-  description: Raises all Somfy shades at sunset
+- alias: "1 hour before sunset: raise all shades"
+  description: Raises all Somfy shades 1 hour before sunset
   mode: single
   triggers:
     - trigger: sun
       event: sunset
+      offset: "-01:00:00"
   actions:
     - action: mqtt.publish
       data: {topic: somfy/shades/1/direction/set, payload: "-1"}
