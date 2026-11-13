@@ -45,9 +45,10 @@ def check_rest_sensors():
     want = {"nws_alert_count", "nws_alert_events", "nws_alert_headline",
             "open_meteo_us_aqi", "open_meteo_pm25", "open_meteo_ozone",
             "shade_board_firmware", "freeze_forecast_14_days",
-            "snowfall_past_7_next_14"}
+            "snowfall_past_7_next_14", "snowfall_history_365_days"}
     assert want <= ids, f"missing REST sensors: {want - ids}"
     for feed in feeds:
+        feed.setdefault("resource", feed.get("resource_template", ""))
         local = feed["resource"].startswith("http://192.168.1.")
         assert local or feed["resource"].startswith("https://"), feed["resource"]
     text = (HA_DIR / "weather_rest.yaml").read_text(encoding="utf-8")
@@ -110,6 +111,9 @@ def check_freeze_sql():
     db.executescript(
         "CREATE TABLE states_meta (metadata_id INTEGER PRIMARY KEY, entity_id TEXT);"
         "CREATE TABLE states (state TEXT, last_updated_ts REAL, metadata_id INTEGER);"
+        "CREATE TABLE statistics_meta (id INTEGER PRIMARY KEY, statistic_id TEXT);"
+        "CREATE TABLE statistics (metadata_id INTEGER, start_ts REAL, min REAL);"
+        "INSERT INTO statistics_meta VALUES (1, 'sensor.acurite_5n1_c_364_temperature');"
         "INSERT INTO states_meta VALUES (1, 'sensor.acurite_5n1_c_364_temperature'),"
         " (2, 'sensor.other');")
     now = int(time.time())
@@ -129,12 +133,18 @@ def check_freeze_sql():
     db.executemany("INSERT INTO states VALUES (?, ?, ?)", rows)
     sql = (HA_DIR / "freeze_last_7_days.sql").read_text(encoding="utf-8")
     sql = "\n".join(l for l in sql.splitlines() if not l.lstrip().startswith("--"))
-    count, minutes, last = db.execute(sql).fetchone()
+    db.executemany("INSERT INTO statistics VALUES (1, ?, ?)",
+                   [(now - 300 * 24 * h, 40.0), (now - 200 * 24 * h, 25.0),
+                    (now - 100 * 24 * h, 50.0)])
+    count, minutes, last, ever, since = db.execute(sql).fetchone()
     assert (count, minutes) == (3, 60 + 30 + 10 + 180), (count, minutes)
     assert last == now - 10 * h, (last, now - 10 * h)
+    assert ever == now - 10 * h, ever  # the latest freezing state reading
+    assert since == now - 300 * 24 * h, since
     db.execute("DELETE FROM states")
-    count, minutes, last = db.execute(sql).fetchone()
+    count, minutes, last, ever, since = db.execute(sql).fetchone()
     assert (count, minutes, last) == (0, 0, None), (count, minutes, last)
+    assert ever == now - 200 * 24 * h, ever  # falls back to long-term statistics
     print(f"ok  freeze_last_7_days.sql -> {count} times, {minutes} min on empty data; test data ok")
 
 
@@ -214,7 +224,13 @@ def check_freeze_forecast():
         retry = yaml.load(f, Loader=_Loader)[0]
     targets = retry["actions"][0]["target"]["entity_id"]
     assert set(targets) == {"sensor.freeze_forecast_14_days",
-                            "sensor.snowfall_past_7_and_next_14_days"}, targets
+                            "sensor.snowfall_past_7_and_next_14_days",
+                            "sensor.snowfall_history_365_days"}, targets
+    hist = next(x for x in feeds
+                if any(s["unique_id"] == "snowfall_history_365_days" for s in x["sensor"]))
+    url = hist["resource_template"]
+    assert "archive-api.open-meteo.com" in url and "daily=snowfall_sum" in url, url
+    assert "timedelta(days=365)" in url and hist["scan_interval"] == 86400, url
     print("ok  snowfall: Open-Meteo past 7 + next 14 days hourly (inches), daily, retried")
 
 

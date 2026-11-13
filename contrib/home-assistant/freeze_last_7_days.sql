@@ -13,6 +13,11 @@
 -- one gap between readings counts for at most 3 hours.
 -- The third column, last_freeze_start, is the unix time the most recent
 -- freezing stretch began (NULL if none in the window).
+-- last_freeze_ever is the latest time the temperature was at or below 32 F in
+-- all recorded history: detailed states (kept 10 days) or the hourly long-term
+-- statistics (kept forever; an hour counts if its minimum was 32 F or below,
+-- and the time is that hour's start). history_since is when the long-term
+-- statistics for the sensor begin.
 SELECT
   (SELECT COUNT(*) FROM (
      SELECT v <= 32 AS frz, LAG(v <= 32) OVER (ORDER BY ts) AS prev
@@ -38,5 +43,17 @@ SELECT
     FROM states s JOIN states_meta m ON s.metadata_id = m.metadata_id
     WHERE m.entity_id = 'sensor.acurite_5n1_c_364_temperature'
       AND s.last_updated_ts > CAST(strftime('%s','now') AS INTEGER) - 604800) WHERE v IS NOT NULL)
-   WHERE frz = 1 AND (prev IS NULL OR prev = 0)) AS last_freeze_start
+   WHERE frz = 1 AND (prev IS NULL OR prev = 0)) AS last_freeze_start,
+  (SELECT CAST(MAX(t) AS INTEGER) FROM (
+     SELECT MAX(s.last_updated_ts) AS t
+     FROM states s JOIN states_meta m ON s.metadata_id = m.metadata_id
+     WHERE m.entity_id = 'sensor.acurite_5n1_c_364_temperature'
+       AND s.state GLOB '[0-9-]*' AND CAST(s.state AS REAL) <= 32
+     UNION ALL
+     SELECT MAX(st.start_ts) AS t
+     FROM statistics st JOIN statistics_meta sm ON st.metadata_id = sm.id
+     WHERE sm.statistic_id = 'sensor.acurite_5n1_c_364_temperature' AND st.min <= 32)) AS last_freeze_ever,
+  (SELECT CAST(MIN(st.start_ts) AS INTEGER)
+     FROM statistics st JOIN statistics_meta sm ON st.metadata_id = sm.id
+     WHERE sm.statistic_id = 'sensor.acurite_5n1_c_364_temperature') AS history_since
 LIMIT 1;
