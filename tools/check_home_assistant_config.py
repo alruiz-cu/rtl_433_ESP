@@ -44,7 +44,8 @@ def check_rest_sensors():
     ids = {s["unique_id"] for feed in feeds for s in feed["sensor"]}
     want = {"nws_alert_count", "nws_alert_events", "nws_alert_headline",
             "open_meteo_us_aqi", "open_meteo_pm25", "open_meteo_ozone",
-            "shade_board_firmware", "freeze_forecast_14_days"}
+            "shade_board_firmware", "freeze_forecast_14_days",
+            "snowfall_past_7_next_14"}
     assert want <= ids, f"missing REST sensors: {want - ids}"
     for feed in feeds:
         local = feed["resource"].startswith("http://192.168.1.")
@@ -203,6 +204,18 @@ def check_freeze_forecast():
     sensor = feed["sensor"][0]
     assert sensor["json_attributes"] == ["time", "temperature_2m"], sensor
     print("ok  freeze forecast: Open-Meteo 14 days hourly, refreshed daily")
+    snow = next(x for x in feeds
+                if any(s["unique_id"] == "snowfall_past_7_next_14" for s in x["sensor"]))
+    for part in ("hourly=snowfall", "precipitation_unit=inch", "past_days=7", "forecast_days=14"):
+        assert part in snow["resource"], (part, snow["resource"])
+    assert snow["scan_interval"] == 86400, snow["scan_interval"]
+    assert snow["sensor"][0]["json_attributes"] == ["time", "snowfall"], snow["sensor"][0]
+    with open(HA_DIR / "information_automations.yaml", encoding="utf-8") as f:
+        retry = yaml.load(f, Loader=_Loader)[0]
+    targets = retry["actions"][0]["target"]["entity_id"]
+    assert set(targets) == {"sensor.freeze_forecast_14_days",
+                            "sensor.snowfall_past_7_and_next_14_days"}, targets
+    print("ok  snowfall: Open-Meteo past 7 + next 14 days hourly (inches), daily, retried")
 
 
 def main():

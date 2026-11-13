@@ -88,3 +88,23 @@
       json_attributes:
         - time
         - temperature_2m
+
+# Open-Meteo hourly snowfall (inches) for the past 7 days and the next 14, for
+# the Information dashboard. The 5-in-1 has no snow gauge, so the past 7 days
+# are Open-Meteo's estimate, not a measurement. Refreshed once a day and at
+# start. State = forecast snowfall total (in) from now on; attributes "time"
+# and "snowfall" are the hourly values (local time).
+- resource: "https://api.open-meteo.com/v1/forecast?latitude=LAT&longitude=LON&hourly=snowfall&precipitation_unit=inch&timezone=auto&past_days=7&forecast_days=14"
+  scan_interval: 86400
+  timeout: 30
+  sensor:
+    - name: "Snowfall past 7 and next 14 days"
+      unique_id: snowfall_past_7_next_14
+      icon: mdi:snowflake
+      unit_of_measurement: "in"
+      value_template: >-
+        {% set t = value_json.hourly.time %}{% set v = value_json.hourly.snowfall %}{% set nowh = now().strftime('%Y-%m-%dT%H:00') %}{% set ns = namespace(s=0) %}{% for i in range(t | length) if t[i] >= nowh and v[i] is number %}{% set ns.s = ns.s + v[i] %}{% endfor %}{{ ns.s | round(2) }}
+      json_attributes_path: "$.hourly"
+      json_attributes:
+        - time
+        - snowfall

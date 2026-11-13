@@ -102,6 +102,10 @@ Files on the HA box (edit with the **File editor** app, or over Samba below):
   once a day; NWS only forecasts about 7 days). If a fetch fails, the
   automation in [contrib/home-assistant/information_automations.yaml](../contrib/home-assistant/information_automations.yaml)
   retries every 15 minutes until it has data.
+- `weather_rest.yaml` also holds hourly snowfall in inches for the past 7 days
+  and the next 14 (`sensor.snowfall_past_7_and_next_14_days`, Open-Meteo,
+  refreshed once a day, same retry automation). The past 7 days are Open-Meteo's
+  estimate for this location: the weather station has no snow gauge.
 - `/homeassistant/weather_rest.yaml` = [contrib/home-assistant/weather_rest.yaml](../contrib/home-assistant/weather_rest.yaml):
   NWS alerts (`sensor.nws_alert_count`, `sensor.nws_alerts`,
   `sensor.nws_alert_headline`) and Open-Meteo air quality
@@ -146,7 +150,7 @@ dashboards use built-in cards only.
 | Weather & Shades | default | Weather only now (see below) |
 | Shades | `/dashboard-shades` | Shade controls |
 | Hardware | `/dashboard-hardware` | Shade board signal, free memory and firmware; chip temperatures (weather board ESP32, PC graphics card, PC motherboard), uptime as yrs:mos:wks:days:hh:mm:ss (weather board, PC, HA machine), HA machine CPU/memory/disk/network, sensor batteries and signal, PC load and disk space |
-| Information | `/dashboard-information` | Freezing temperatures in the last 7 days (how many times it reached 32 F or below, total time, when it last dropped to 32 F) and the freeze forecast for today and the next 14 days (dates, hours and lows). Config in [contrib/home-assistant/information_dashboard.yaml](../contrib/home-assistant/information_dashboard.yaml). |
+| Information | `/dashboard-information` | Freezing temperatures in the last 7 days (how many times it reached 32 F or below, total time, when it last dropped to 32 F) the freeze forecast for today and the next 14 days (dates, hours and lows), and snowfall for the last 7 days (count, total, last snowfall, amounts by day) and the next 14 days (dates, hours, amounts). Config in [contrib/home-assistant/information_dashboard.yaml](../contrib/home-assistant/information_dashboard.yaml). |
 
 Weather dashboard, top to bottom:
 
