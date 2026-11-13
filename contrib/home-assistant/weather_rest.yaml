@@ -56,3 +56,17 @@
       state_class: measurement
       unit_of_measurement: "µg/m³"
       value_template: "{{ value_json.current.ozone }}"
+
+# Shade board (ESPSomfy-RTS) firmware version and update status, from its web API.
+- resource: "http://192.168.1.38/controller"
+  scan_interval: 3600
+  timeout: 20
+  sensor:
+    - name: "Shade board firmware"
+      unique_id: shade_board_firmware
+      icon: mdi:chip
+      value_template: "{{ value_json.version.fwVersion.name }}"
+      json_attributes_path: "$.version"
+      json_attributes:
+        - latest
+        - available

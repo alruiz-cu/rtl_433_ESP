@@ -87,7 +87,16 @@ Only set it up if Board 2 fails again.
 
 Files on the HA box (edit with the **File editor** app, or over Samba below):
 
-- `/homeassistant/configuration.yaml` ends with `rest: !include weather_rest.yaml`.
+- `/homeassistant/configuration.yaml` ends with `rest: !include weather_rest.yaml`
+  and `command_line: !include shade_board_sensors.yaml`.
+- `/homeassistant/shade_board_sensors.yaml` = [contrib/home-assistant/shade_board_sensors.yaml](../contrib/home-assistant/shade_board_sensors.yaml)
+  and `/homeassistant/espsomfy_stats.py` = [contrib/home-assistant/espsomfy_stats.py](../contrib/home-assistant/espsomfy_stats.py):
+  the shade board's Wi-Fi signal (`sensor.shade_board_wi_fi_signal`) and free
+  memory (`sensor.shade_board_free_memory`), read every minute from the
+  websocket the ESPSomfy web page uses (the board publishes them nowhere else).
+  `weather_rest.yaml` also reads its firmware version and whether an update
+  exists (`sensor.shade_board_firmware`). ESPSomfy-RTS has no temperature or
+  uptime reading.
 - `/homeassistant/weather_rest.yaml` = [contrib/home-assistant/weather_rest.yaml](../contrib/home-assistant/weather_rest.yaml):
   NWS alerts (`sensor.nws_alert_count`, `sensor.nws_alerts`,
   `sensor.nws_alert_headline`) and Open-Meteo air quality
@@ -130,7 +139,7 @@ dashboards use built-in cards only.
 |---|---|---|
 | Weather & Shades | default | Weather only now (see below) |
 | Shades | `/dashboard-shades` | Shade controls |
-| Hardware | `/dashboard-hardware` | Chip temperatures (weather board ESP32, PC graphics card, PC motherboard), uptime as yrs:mos:wks:days:hh:mm:ss (weather board, PC, HA machine), HA machine CPU/memory/disk/network, sensor batteries and signal, PC load and disk space |
+| Hardware | `/dashboard-hardware` | Shade board signal, free memory and firmware; chip temperatures (weather board ESP32, PC graphics card, PC motherboard), uptime as yrs:mos:wks:days:hh:mm:ss (weather board, PC, HA machine), HA machine CPU/memory/disk/network, sensor batteries and signal, PC load and disk space |
 | Information | `/dashboard-information` | Freezing temperatures in the last 7 days: how many times it reached 32 F or below and the total time |
 
 Weather dashboard, top to bottom:
