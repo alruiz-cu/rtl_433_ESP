@@ -70,3 +70,21 @@
       json_attributes:
         - latest
         - available
+
+# Open-Meteo 14-day hourly temperature for the Information dashboard's freeze
+# forecast (NWS only forecasts about 7 days). Refreshed once a day and at start.
+# State = number of days with any hour at or below 32 F; attributes "time" and
+# "temperature_2m" are the hourly forecast (local time, deg F).
+- resource: "https://api.open-meteo.com/v1/forecast?latitude=LAT&longitude=LON&hourly=temperature_2m&temperature_unit=fahrenheit&timezone=auto&forecast_days=14"
+  scan_interval: 86400
+  timeout: 30
+  sensor:
+    - name: "Freeze forecast 14 days"
+      unique_id: freeze_forecast_14_days
+      icon: mdi:snowflake-alert
+      value_template: >-
+        {% set t = value_json.hourly.time %}{% set v = value_json.hourly.temperature_2m %}{% set ns = namespace(days=[]) %}{% for i in range(t | length) if v[i] is number and v[i] <= 32 and t[i][:10] not in ns.days %}{% set ns.days = ns.days + [t[i][:10]] %}{% endfor %}{{ ns.days | length }}
+      json_attributes_path: "$.hourly"
+      json_attributes:
+        - time
+        - temperature_2m

@@ -1,0 +1,22 @@
+# Copyright (c) 2026 Al Ruiz. All rights reserved.
+#
+# Automations for the Information dashboard. Paste into Settings ->
+# Automations -> Create automation -> three dots -> Edit in YAML.
+
+- alias: "Freeze forecast: retry when it has no data"
+  description: >-
+    The 14-day freeze forecast refreshes once a day. If a fetch fails it would
+    stay empty for a day, so retry every 15 minutes while it has no forecast.
+  mode: single
+  triggers:
+    - trigger: time_pattern
+      minutes: "/15"
+  conditions:
+    - condition: template
+      value_template: >-
+        {{ states('sensor.freeze_forecast_14_days') in ['unknown', 'unavailable']
+           or not state_attr('sensor.freeze_forecast_14_days', 'time') }}
+  actions:
+    - action: homeassistant.update_entity
+      target:
+        entity_id: sensor.freeze_forecast_14_days

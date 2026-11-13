@@ -1,0 +1,38 @@
+# Copyright (c) 2026 Al Ruiz. All rights reserved.
+#
+# Information dashboard (/dashboard-information). Paste into the dashboard's
+# three dots -> Edit dashboard -> three dots -> Raw configuration editor.
+# Uses sensor.freezing_last_7_days (freeze_last_7_days.sql),
+# sensor.freeze_forecast_14_days (weather_rest.yaml) and the retry automation
+# in information_automations.yaml.
+
+title: Information
+views:
+  - title: Information
+    path: information
+    icon: mdi:information
+    type: sections
+    max_columns: 4
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Freezing temperatures, last 7 days
+            icon: mdi:snowflake-thermometer
+          - type: markdown
+            content: |-
+              {% set n = states('sensor.freezing_last_7_days') | int(-1) %}{% set m = state_attr('sensor.freezing_last_7_days', 'freeze_minutes') | int(0) %}{% set last = state_attr('sensor.freezing_last_7_days', 'last_freeze_start') %}{% if n < 0 %}<center>Freeze tracking is unavailable right now.</center>{% else %}{% set d = m // 1440 %}{% set h = (m % 1440) // 60 %}{% set mm = m % 60 %}<center><font size="6"><b>{{ n }}</b></font><br>{{ 'time' if n == 1 else 'times' }} at or below 32 °F<br><br><font size="6"><b>{% if d %}{{ d }} d {% endif %}{% if d or h %}{{ h }} h {% endif %}{{ mm }} min</b></font><br>total time at or below 32 °F<br><br><b>Last dropped to 32 °F or below:</b><br>{{ (last | int | timestamp_local | as_datetime).strftime('%a %b %-d at %-I:%M %p') if last else 'not in the last 7 days' }}</center>{% endif %}<br><small>Rolling 7 days from the backyard 5-in-1 sensor. Now {{ states('sensor.acurite_5n1_c_364_temperature') | float(0) | round(1) }} °F.</small>
+            grid_options:
+              columns: 12
+              rows: auto
+      - type: grid
+        cards:
+          - type: heading
+            heading: Freezing forecast, today and the next 14 days
+            icon: mdi:snowflake-alert
+          - type: markdown
+            content: |-
+              {% set e = 'sensor.freeze_forecast_14_days' %}{% set tt = state_attr(e, 'time') or [] %}{% set vv = state_attr(e, 'temperature_2m') or [] %}{% set nowh = now().strftime('%Y-%m-%dT%H:00') %}{% set today = now().strftime('%a %b %-d') %}{% set ns = namespace(h=[], cold=none, days=[]) %}{% for i in range(tt | length) if tt[i] >= nowh and vv[i] is number %}{% set dt = strptime(tt[i], '%Y-%m-%dT%H:%M') %}{% set row = {'i': i, 'date': dt.strftime('%a %b %-d'), 'time': dt.strftime('%-I %p'), 'temp': vv[i] | round(0) | int} %}{% if ns.cold is none or vv[i] < ns.cold.temp %}{% set ns.cold = row %}{% endif %}{% if vv[i] <= 32 %}{% set ns.h = ns.h + [row] %}{% if row.date not in ns.days %}{% set ns.days = ns.days + [row.date] %}{% endif %}{% endif %}{% endfor %}{% macro windows(rows) %}{% set w = namespace(out=[], start=none, prev=none) %}{% for r in rows %}{% if w.prev is not none and r.i != w.prev.i + 1 %}{% set w.out = w.out + [w.start.time if w.start.i == w.prev.i else w.start.time ~ ' to ' ~ w.prev.time] %}{% set w.start = r %}{% elif w.start is none %}{% set w.start = r %}{% endif %}{% set w.prev = r %}{% endfor %}{% if w.start is not none %}{% set w.out = w.out + [w.start.time if w.start.i == w.prev.i else w.start.time ~ ' to ' ~ w.prev.time] %}{% endif %}{{ w.out | join(', ') }}{% endmacro %}{% if not tt %}<center>Forecast unavailable right now; it retries every 15 minutes.</center>{% else %}{% set th = ns.h | selectattr('date', 'eq', today) | list %}<b>Today ({{ today }}):</b> {% if th %}freezing expected {{ windows(th) }}, low {{ th | map(attribute='temp') | min }} °F{% else %}no freezing expected{% endif %}<br><br>{% if ns.days %}<b>Days forecast at or below 32 °F:</b><table width="100%">{% for d in ns.days %}{% set dh = ns.h | selectattr('date', 'eq', d) | list %}<tr><td><b>{{ d }}</b></td><td>{{ windows(dh) }}</td><td align="right">low {{ dh | map(attribute='temp') | min }} °F</td></tr>{% endfor %}</table>{% else %}<b>No freezing temperatures forecast</b> in the next 14 days.{% endif %}{% if ns.cold %}<br><small>Coldest forecast hour: {{ ns.cold.temp }} °F, {{ ns.cold.date }} at {{ ns.cold.time }}.</small>{% endif %}{% endif %}<br><small>Open-Meteo hourly forecast for 14 days, refreshed once a day (last {{ relative_time(states[e].last_reported) if states[e] else 'never' }} ago).</small>
+            grid_options:
+              columns: 12
+              rows: auto
