@@ -1,0 +1,36 @@
+# Copyright (c) 2026 Al Ruiz. All rights reserved.
+#
+# Shade board (ESPSomfy-RTS, Board 1) Wi-Fi signal and memory for the Hardware
+# dashboard. Lives on Home Assistant as /homeassistant/shade_board_sensors.yaml,
+# loaded by this line in configuration.yaml (a new line needs a full restart):
+#   command_line: !include shade_board_sensors.yaml
+# The script espsomfy_stats.py must be at /homeassistant/espsomfy_stats.py
+# (/config inside the Home Assistant container). 192.168.1.38 is reserved for
+# the board in the router. ESPSomfy-RTS has no temperature or uptime reading.
+
+- sensor:
+    name: "Shade board Wi-Fi signal"
+    unique_id: shade_board_wifi_signal
+    command: "python3 /config/espsomfy_stats.py 192.168.1.38 15"
+    command_timeout: 25
+    scan_interval: 60
+    unit_of_measurement: "dB"
+    device_class: signal_strength
+    state_class: measurement
+    value_template: "{{ value_json.rssi if value_json.online and value_json.rssi is not none else none }}"
+    availability: "{{ value_json.online }}"
+- sensor:
+    name: "Shade board free memory"
+    unique_id: shade_board_free_memory
+    command: "python3 /config/espsomfy_stats.py 192.168.1.38 15"
+    command_timeout: 25
+    scan_interval: 60
+    unit_of_measurement: "B"
+    device_class: data_size
+    state_class: measurement
+    value_template: "{{ value_json.free if value_json.online and value_json.free is not none else none }}"
+    availability: "{{ value_json.online }}"
+    json_attributes:
+      - min_free
+      - max_block
+      - total

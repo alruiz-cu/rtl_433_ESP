@@ -6,6 +6,7 @@
 * weather_rest.yaml defines the sensors the Weather dashboard uses.
 * shade_automations.yaml raises shades above 8 mph, lowers only below 4 mph, and
   lowers the living room shade (id 3) when sunny, every 30 min between noon and 4 pm.
+* espsomfy_stats.py reads the shade board's Wi-Fi signal and memory.
 * freeze_last_7_days.sql counts dips to 32 F or below and their minutes.
 * wind_direction_history.sql runs against a minimal recorder schema and returns
   samples as "bucket:direction:max_mph,...", only for the last 6 hours.
@@ -42,10 +43,12 @@ def check_rest_sensors():
         feeds = yaml.load(f, Loader=_Loader)
     ids = {s["unique_id"] for feed in feeds for s in feed["sensor"]}
     want = {"nws_alert_count", "nws_alert_events", "nws_alert_headline",
-            "open_meteo_us_aqi", "open_meteo_pm25", "open_meteo_ozone"}
+            "open_meteo_us_aqi", "open_meteo_pm25", "open_meteo_ozone",
+            "shade_board_firmware"}
     assert want <= ids, f"missing REST sensors: {want - ids}"
     for feed in feeds:
-        assert feed["resource"].startswith("https://"), feed["resource"]
+        local = feed["resource"].startswith("http://192.168.1.")
+        assert local or feed["resource"].startswith("https://"), feed["resource"]
     text = (HA_DIR / "weather_rest.yaml").read_text(encoding="utf-8")
     assert "'None'" not in text, "use 'No alerts': HA shows 'None' as unknown"
     print("ok  weather_rest.yaml defines all dashboard sensors")
@@ -133,12 +136,68 @@ def check_freeze_sql():
     print(f"ok  freeze_last_7_days.sql -> {count} times, {minutes} min on empty data; test data ok")
 
 
+def check_espsomfy_stats():
+    """Run espsomfy_stats.py against a fake ESPSomfy websocket server."""
+    import importlib.util
+    import json
+    import socket
+    import struct
+    import threading
+
+    spec = importlib.util.spec_from_file_location(
+        "espsomfy_stats", HA_DIR / "espsomfy_stats.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    def frame(text):
+        data = text.encode()
+        if len(data) < 126:
+            return bytes([0x81, len(data)]) + data
+        return bytes([0x81, 126]) + struct.pack(">H", len(data)) + data
+
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    port = srv.getsockname()[1]
+
+    def serve():
+        conn, _ = srv.accept()
+        req = b""
+        while b"\r\n\r\n" not in req:
+            req += conn.recv(1024)
+        conn.sendall(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n"
+                     b"Connection: Upgrade\r\n\r\n")
+        conn.sendall(frame("42[shadeState," + json.dumps({"name": "x" * 200}) + "]"))
+        conn.sendall(frame('42[wifiStrength,{"ssid":"s","strength":-16,"channel":6}]'))
+        conn.sendall(frame('42[memStatus,{"max":110580,"free":151600,"min":105412,"total":259828}]'))
+        conn.close()
+
+    threading.Thread(target=serve, daemon=True).start()
+    # collect() connects to port 8080; patch it to the test port.
+    orig = mod.socket.create_connection
+    mod.socket.create_connection = lambda addr, timeout: orig(("127.0.0.1", port), timeout)
+    try:
+        found = mod.collect("127.0.0.1", 5)
+    finally:
+        mod.socket.create_connection = orig
+        srv.close()
+    out = mod.to_result(found)
+    assert out == {"online": True, "rssi": -16, "channel": 6, "free": 151600,
+                   "min_free": 105412, "max_block": 110580, "total": 259828}, out
+    with open(HA_DIR / "shade_board_sensors.yaml", encoding="utf-8") as f:
+        sensors = yaml.load(f, Loader=_Loader)
+    ids = {s["sensor"]["unique_id"] for s in sensors}
+    assert ids == {"shade_board_wifi_signal", "shade_board_free_memory"}, ids
+    print("ok  espsomfy_stats.py parses wifiStrength and memStatus from a fake board")
+
+
 def main():
     check_yaml()
     check_rest_sensors()
     check_shade_automations()
     check_sql()
     check_freeze_sql()
+    check_espsomfy_stats()
     print("all Home Assistant config checks passed")
     return 0
 
